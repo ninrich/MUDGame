@@ -15,16 +15,21 @@ public class MUDClient {
     private MUDServerManagerInterface service;
 
     private String name;
+    private String menuMessage = "";
     private Boolean connected = true;
 
 
     private Boolean connectToServerManager() {
         try {
             this.service = (MUDServerManagerInterface) Naming.lookup(serverManagerURL);
-            String welcome_message = this.service.clientConnected(this.name);
-            System.out.println(welcome_message);
+            if (this.service.clientConnected(this.name)) {
+                System.out.println("You have successfully connected to the MUDGame server manager!");
+                return true;
+            } else {
+                System.out.println("Could not connect to the MUDGame server manager!");
+                return false;
+            }
 
-            return true;
         } catch (RemoteException | NotBoundException | MalformedURLException e) {
             e.printStackTrace();
             return false;
@@ -42,6 +47,55 @@ public class MUDClient {
         }
     }
 
+    private String clientMenu()  {
+        return  this.menuMessage +
+                "\nWhat would you like to do?" +
+                "\n[J]oin game" +
+                "\n[C]reate new game" +
+                "\n[E]xit";
+    }
+
+    private void clientChoice(String choice) throws IOException {
+        switch (choice.toLowerCase()) {
+            case "j": this.chooseGameToJoin(); break;
+            case "c": this.clientCreateGame(); break;
+            case "e":
+        }
+    }
+
+    private void clientCreateGame() throws IOException {
+        try {
+            String name;
+
+            System.out.println("Please enter the name of the new game:");
+            name = input.readLine();
+            if (this.service.createGame(this.name, name)) {
+                this.menuMessage = name + " was created successfully!\n";
+            } else {
+                this.menuMessage = "Error creating game " + name;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void chooseGameToJoin() throws IOException {
+        this.service.getAllGames();
+        System.out.println("Write the name of the server you wish to join");
+        String choice = input.readLine();
+        if (this.service.joinGame(this.name, choice)) {
+            System.out.println("You have successfully joined " + choice);
+            this.inGame();
+        } else {
+            System.out.println("Failed to join " + choice);
+        }
+
+    }
+
+    private Boolean inGame() {
+        //display in game menus and shit
+        return true;
+    }
 
     private MUDClient() {}
 
@@ -53,9 +107,9 @@ public class MUDClient {
             return;
         }
         while (client.connected){
-            System.out.println(client.service.clientMenu());
+            System.out.println(client.clientMenu());
             String choice = input.readLine();
-            client.service.clientChoice(choice);
+            client.clientChoice(choice);
         }
     }
 }
