@@ -1,13 +1,10 @@
 package mud;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.StringJoiner;
+import java.util.*;
 
 import static mud.MUDServerManagerInterface.maxPlayersError;
 
-class MUDGame implements MUDServerInterface {
+class MUDGame {
     private MUD MUDMap;
     private Integer playersConnected;
     private final Integer maxPlayersConnected;
@@ -29,17 +26,24 @@ class MUDGame implements MUDServerInterface {
     }
 
     String removePlayer(String playerName) {
-        String playerLocation = this.getPlayerLocation(playerName);
-        ArrayList<String> playerInventory = this.playerItems.get(playerName);
+        try {
+            String playerLocation = this.getPlayerLocation(playerName);
+            ArrayList<String> playerInventory = this.playerItems.get(playerName);
 
-        for (String item : playerInventory)
-            this.placeItem(playerName, item);
-        this.playerItems.remove(playerName);
+            // drop player's items at their current location
+            for (String item : playerInventory) {
+                this.MUDMap.addThing(playerLocation, item);
+            }
 
-        this.MUDMap.deletePlayer(playerLocation, playerName);
-        this.playerLocations.remove(playerName);
-        --this.playersConnected;
-        return playerName + " left " + this.getName() + ".\n";
+            this.MUDMap.deletePlayer(playerLocation, playerName);
+            this.playerItems.remove(playerName);
+            this.playerLocations.remove(playerName);
+            --this.playersConnected;
+
+            return playerName + " left " + this.getName() + ".\n";
+        } catch (NullPointerException e) {
+            return "";
+        }
     }
 
     private String getPlayerLocation(String playerName) {
@@ -94,7 +98,7 @@ class MUDGame implements MUDServerInterface {
         return info.toString();
     }
 
-    String playerAction(String playerName, String action) {
+    synchronized String playerAction(String playerName, String action) {
         String[] parsedAction = action.split("\\s+");
         String message = "";
         String playerCurrentLocation = this.playerLocations.get(playerName);
@@ -160,11 +164,12 @@ class MUDGame implements MUDServerInterface {
                 return "You don't have the required items to craft " + itemToCraft + "!";
         }
 
-        for (String requiredItem: itemsNeeded){
+        for (String requiredItem : itemsNeeded) {
             playerInventory.remove(requiredItem);
         }
 
         playerInventory.add(itemToCraft);
+
         return itemToCraft + " was crafted successfully!";
     }
 

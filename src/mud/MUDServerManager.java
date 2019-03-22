@@ -1,42 +1,48 @@
 package mud;
 
 import java.io.BufferedReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
-import java.net.MalformedURLException;
-import java.net.UnknownHostException;
 import java.rmi.Naming;
-import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.StringJoiner;
 
 public class MUDServerManager implements MUDServerManagerInterface {
     private static BufferedReader input = new BufferedReader( new InputStreamReader( System.in ));
 
     private Integer MUDGamesLimit = 2;
-    private String url;
     private String menuMessage = "";
     private Map<String, MUDGame> MUDGames = new HashMap<>();
     private Map<String, String> connectedPlayers = new HashMap<>();
     private Boolean running;
 
-
     private MUDServerManager(){}
 
     private  Boolean register() {
         try {
-            String hostname = (InetAddress.getLocalHost()).getCanonicalHostName();
+            String url;
+            String hostname;
+            MUDServerManagerInterface stub;
+
             System.setProperty("java.security.policy", "mud.policy");
             System.setSecurityManager(new SecurityManager());
-            MUDServerManagerInterface stub = (MUDServerManagerInterface) UnicastRemoteObject.exportObject(this, serverManagerPort);
-            this.url = "rmi://" + hostname + ":" + rmiPortNumber + "/ServerManager";
-            Naming.rebind(this.url, stub);
+            hostname = (InetAddress.getLocalHost()).getCanonicalHostName();
+            stub = (MUDServerManagerInterface) UnicastRemoteObject.exportObject(this, serverManagerPort);
+            url = "rmi://" + hostname + ":" + rmiPortNumber + "/ServerManager";
+            Naming.rebind(url, stub);
             this.running = true;
-            this.menuMessage = "Server Manager registered successfully at " + this.url + "\n";
+            this.menuMessage = "Server Manager registered successfully at " + url + "\n";
+
+            FileWriter urlFile = new FileWriter("./url.txt");
+            urlFile.write(url);
+            urlFile.close();
             return true;
-        } catch (RemoteException | UnknownHostException | MalformedURLException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
         return false;
@@ -63,7 +69,6 @@ public class MUDServerManager implements MUDServerManagerInterface {
                 (this.menuMessage.isEmpty() ? "" : ("New messages:\n" + this.menuMessage))
                 + getAllGames() + "\n" +
                 "\n[C]reate a new game" +
-                "\n[D]elete a game" +
                 "\n[E]dit maximum number of MUDGames" +
                 "\n[V]iew connected users" +
                 "\n[K]ick user" +
@@ -73,8 +78,7 @@ public class MUDServerManager implements MUDServerManagerInterface {
     private void serverAction(String choice) {
         this.menuMessage = "";
         switch (choice.toLowerCase()) {
-            case "c" : this.serverCreateGame(); break;
-            case "d": break;
+            case "c": this.serverCreateGame(); break;
             case "e": this.changeNumberOfMUDGames(); break;
             case "k": this.kickUser();
             case "v": this.displayUsers(); break;
@@ -92,6 +96,7 @@ public class MUDServerManager implements MUDServerManagerInterface {
         }
         this.MUDGamesLimit = limit;
         this.menuMessage += "Maximum number of game istances is now set to " + limit+ ".\n";
+        System.out.println(serverMenu());
     }
 
     private void kickUser() {
@@ -101,16 +106,12 @@ public class MUDServerManager implements MUDServerManagerInterface {
         System.out.println("Enter the name of the user to kick:");
         try {
             userName = input.readLine();
+            this.playerDisconnectGame(userName);
             this.connectedPlayers.put(userName, kickedMessage);
             this.menuMessage += userName + " was kickedMessage.\n";
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    private String playerExit(String playerName) {
-        //playerObject playername set currentGame to none
-        return "exit_successful";
     }
 
     private void displayUsers() {
@@ -161,7 +162,7 @@ public class MUDServerManager implements MUDServerManagerInterface {
         return gameCreationError;
     }
 
-    public String joinGame(String playerName, String gameName) {
+    public synchronized String joinGame(String playerName, String gameName) {
         MUDGame game = this.MUDGames.get(gameName);
         String info;
 
@@ -179,7 +180,7 @@ public class MUDServerManager implements MUDServerManagerInterface {
         if (this.connectedPlayers.get(playerName).equals(kickedMessage))
             return kickedMessage;
         switch (action.toLowerCase()) {
-            case "e": return this.playerExit(playerName);
+            case "e": return this.playerExitServer(playerName);
             case "d": return this.playerDisconnectGame(playerName);
             case "v": return this.getConnectedUsers();
             case "s": return this.playersInSameGameAs(playerName);
@@ -197,18 +198,20 @@ public class MUDServerManager implements MUDServerManagerInterface {
     }
 
     public String playerExitServer(String clientName) {
-        MUDGame currentGame = this.getPlayersGame(clientName);
+        if (this.connectedPlayers.containsKey(clientName)) {
+            MUDGame currentGame = this.getPlayersGame(clientName);
 
-        this.connectedPlayers.remove(clientName);
-        this.menuMessage += currentGame.removePlayer(clientName);
-        this.menuMessage += clientName + " has left the server.\n";
-        System.out.println(this.serverMenu());
-
+            this.connectedPlayers.remove(clientName);
+            try {
+                this.menuMessage += currentGame.removePlayer(clientName);
+            } catch (NullPointerException ignored) {}
+            this.menuMessage += clientName + " has left the server.\n";
+            System.out.println(this.serverMenu());
+        }
         return exitMessage;
     }
 
     public String playerDisconnectGame(String playerName) {
-        String info;
         MUDGame currentGame = this.getPlayersGame(playerName);
 
         this.connectedPlayers.put(playerName, "");
@@ -259,5 +262,7 @@ public class MUDServerManager implements MUDServerManagerInterface {
             choice = input.readLine();
             server.serverAction(choice);
         }
+
+        System.exit(0);
     }
 }

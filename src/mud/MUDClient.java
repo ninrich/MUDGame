@@ -3,7 +3,8 @@ package mud;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.MalformedURLException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
@@ -11,7 +12,6 @@ import java.rmi.RemoteException;
 import static mud.MUDServerManagerInterface.*;
 
 public class MUDClient {
-    private static final String serverManagerURL = "rmi://137.50.168.16:50010/ServerManager";
     private static BufferedReader input = new BufferedReader( new InputStreamReader( System.in ));
 
     private MUDServerManagerInterface service;
@@ -26,6 +26,8 @@ public class MUDClient {
 
     private Boolean connectToServerManager() {
         try {
+            String serverManagerURL = Files.readString(Paths.get("./url.txt"));
+
             this.service = (MUDServerManagerInterface) Naming.lookup(serverManagerURL);
             if (this.service.playerConnect(this.name).equals(welcomeMessage)) {
                 System.out.println("You have successfully connected to the MUDGame server manager!");
@@ -35,11 +37,10 @@ public class MUDClient {
                 return false;
             }
 
-        } catch (RemoteException | NotBoundException | MalformedURLException e) {
+        } catch (IOException | NotBoundException e) {
             e.printStackTrace();
             return false;
         }
-
     }
 
     private void setName() {
@@ -75,7 +76,7 @@ public class MUDClient {
             this.service.playerExitServer(this.name);
             System.exit(0);
         } catch (RemoteException e) {
-            e.printStackTrace();
+            System.exit(0);
         }
     }
 
@@ -167,7 +168,6 @@ public class MUDClient {
         }
     }
 
-
     private void recordCommand() {
         System.out.println("What would you like to do?");
         try {
@@ -201,6 +201,9 @@ public class MUDClient {
             System.out.println("Could not connect to the Server Manager");
             return;
         }
+
+        Runtime.getRuntime().addShutdownHook(new Thread(client::exit));
+
         while (client.connected){
             System.out.println(client.clientMenu());
             String choice = input.readLine();

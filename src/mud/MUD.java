@@ -17,7 +17,7 @@ public class MUD
 {
 
     // A record of all the vertices in the mud.MUD graph. HashMaps are not
-    // synchronized, but we don't really need this to be synchronised.
+    //  but we don't really need this to be synchronised.
     private Map<String,Vertex> vertexMap = new HashMap<String,Vertex>();
     private String _startLocation = "";
 
@@ -29,15 +29,6 @@ public class MUD
         Vertex v = getOrCreateVertex( sourceName );
         Vertex w = getOrCreateVertex( destName );
         v._routes.put( direction, new Edge( w, view ) );
-    }
-
-    /**
-     * Create a new thing at a location.
-     */
-    private void create_thing(String location, String thing )
-    {
-		Vertex v = getOrCreateVertex( location );
-		v._things.add( thing );
     }
 
     /**
@@ -76,8 +67,7 @@ public class MUD
      * following fromat:
      * source direction destination message
      */
-    private void create_edges(String edgesfile )
-    {
+    private void create_edges(String edgesfile ) {
 		try {
 			FileReader fin = new FileReader( edgesfile );
 			BufferedReader edges = new BufferedReader( fin );
@@ -112,8 +102,7 @@ public class MUD
      * users joining the mud.MUD.
      */
 
-	private void record_messages(String messagesfile )
-    {
+	private void record_messages(String messagesfile ) {
 		try {
 			FileReader fin = new FileReader( messagesfile );
 			BufferedReader messages = new BufferedReader( fin );
@@ -191,8 +180,7 @@ public class MUD
     	for testing purposes so that we can check that the structure
     	defined has been successfully parsed.
 	 */
-    public String toString()
-    {
+    public String toString() {
 		StringBuilder summary = new StringBuilder();
 		Iterator iter = vertexMap.keySet().iterator();
 		String loc;
@@ -208,23 +196,21 @@ public class MUD
     /**
      * A method to provide a string describing a particular location.
      */
-    public String locationInfo( String loc )
-    {
+    public String locationInfo( String loc ) {
     	return getVertex( loc ).toString();
     }
 
     /**
      * Get the start location for new mud.MUD users.
      */
-    public String startLocation()
-    {
+    public String startLocation() {
     	return _startLocation;
     }
 
     /**
      * Add a thing to a location; used to enable us to add new users.
      */
-    public void addThing( String loc, String thing )
+    void addThing( String loc, String thing )
     {
 		Vertex v = getVertex( loc );
 		v._things.add( thing );
@@ -267,8 +253,8 @@ public class MUD
 		Edge e = v._routes.get( direction );
 		if (e == null)   		// if there is no route in that direction
 			return location;  	// no move is made; return current location.
-		v._players.remove( playerName );
-		e._dest._players.add( playerName );
+			v._players.remove( playerName );
+			e._dest._players.add( playerName );
 		return e._dest._name;
     }
 
